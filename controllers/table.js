@@ -25,22 +25,22 @@ const getOneTableStatus = async(req,res)=>{
     let ratio = 0
     switch (array[z]){
       case "unoccupied":
+        ratio = await check_sensor(z+1,10)
         console.log("table %d unoccupied",z+1)
-        await check_sensor(z+1,10, function(ratio){
-          if (ratio >0.5){
-            console.log("change to occupied")
-            array[z]="occupied"
-          }
-        })
+        console.log(ratio)
+        if (ratio >0.5){
+          console.log("change to occupied")
+          array[z]="occupied"
+        }
         break
       case "occupied":
+        ratio = await check_sensor(z+1,60)
         console.log("table %d occupied",z+1)
-        await check_sensor(z+1,60, function(ratio){
-          if (ratio<0.3){
-            console.log("change to unoccupied")
-            array[z]="unoccupied"
-          }
-        })
+        console.log(ratio)
+        if (ratio<0.3){
+          console.log("change to unoccupied")
+          array[z]="unoccupied"
+        }
         break
       default:
         res.status(400).send("Wrong table status passed over.")
@@ -52,27 +52,32 @@ const getOneTableStatus = async(req,res)=>{
   res.json(array)
 }
 
-const check_sensor=async(id,time, callBack)=>{
-  let duration = 0
-  let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "homeassistant"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`)
-// console.log(results)
-  for (i=0;i<results.length;i++){
-    if (i==results.length-1){
-      break
+const check_sensor=async(id,time)=>{
+  let ratio = 0
+  try{
+    let duration = 0
+    let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "homeassistant"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`)
+  // console.log(results)
+    for (i=0;i<results.length;i++){
+      if (i==results.length-1){
+        break
+      }
+      if(results[i].distinct_value == 0){
+        continue
+      }
+      start = results[i].time._nanoISO.slice(11,-1)
+      end = results[++i].time._nanoISO.slice(11,-1)
+      let t1 = moment(start,"hh:mm:ss")
+      let t2 = moment(end,"hh:mm:ss")
+      let diff = moment(t2.diff(t1)).format("ss")
+      duration+=parseInt(diff)
     }
-    if(results[i].distinct_value == 0){
-      continue
-    }
-    start = results[i].time._nanoISO.slice(11,-1)
-    end = results[++i].time._nanoISO.slice(11,-1)
-    let t1 = moment(start,"hh:mm:ss")
-    let t2 = moment(end,"hh:mm:ss")
-    let diff = moment(t2.diff(t1)).format("ss")
-    duration+=parseInt(diff)
+    ratio = duration/(time*60)
   }
-let ratio = duration/(time*60)
-console.log("ratio: ",ratio)
-return callBack(ratio)
+  catch(err){
+    console.log(err)
+  }
+return ratio
 
 }
 
