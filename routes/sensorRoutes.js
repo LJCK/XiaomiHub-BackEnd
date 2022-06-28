@@ -9,4 +9,4 @@ router.get('/checkStatus',sensorController.getOneTableStatus)
 //   res.send(`received request ${req.params.id}`)
 // })
 
-module.exports = router
+module.exports = router;

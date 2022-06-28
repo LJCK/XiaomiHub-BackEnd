@@ -7,8 +7,7 @@ const sensorRoutes = require('./routes/sensorRoutes');
 // const multer = require('multer') // v1.0.5
 // const upload = multer() // for parsing multipart/form-data
 
-// app.use(bodyParser.json()) // for parsing application/json
-// app.use(bodyParser.urlencoded({ extended: true })) // for parsing application/x-www-form-urlencoded
+
 
 const app = express();
 
@@ -22,6 +21,8 @@ mongoose.connect(dbURI, {useNewUrlParser: true, useUnifiedTopology: true }) //it
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+app.use(bodyParser.json()) // for parsing application/json
+app.use(bodyParser.urlencoded({ extended: true })) // for parsing application/x-www-form-urlencoded
 
 app.get('/',(req,res)=>{
   res.send("Welcome to backend");
