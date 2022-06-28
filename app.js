@@ -15,7 +15,7 @@ const app = express();
 //connect to mongodb
 const dbURI = 'mongodb+srv://qinxiang:qinxiang@cluster0.ojjsesl.mongodb.net/?retryWrites=true&w=majority'
 mongoose.connect(dbURI, {useNewUrlParser: true, useUnifiedTopology: true }) //its an async task, returns something like a promise
-        .then(result => app.listen('3000', () => console.log('connected to db, server started')))
+        .then(result => app.listen('3001', () => console.log('connected to db, server started')))
         .catch(err => console.log(err));
 
 

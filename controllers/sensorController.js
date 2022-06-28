@@ -1,6 +1,6 @@
 const Influx = require('influx');
 const moment = require("moment");
-const Blog = require('../models/sensor');
+const Sensor = require('../models/sensor');
 
 const client = new Influx.InfluxDB({
   database: "homeassistant",
@@ -26,7 +26,7 @@ const getOneTableStatus = async(req, res) => {
     let ratio = 0;
     switch (array[z]){
       case "unoccupied":
-        ratio = await check_sensor(z+1,10);
+        ratio = await check_sensor(z+1,4);
         console.log("table %d unoccupied",z+1);
         console.log(ratio);
         if (ratio >0.5){
@@ -49,6 +49,12 @@ const getOneTableStatus = async(req, res) => {
       }
   }
   console.log(array);
+  const sensor = new Sensor({level: 8, deskOccupancy: array});
+  sensor.save()
+      .then((result) => {
+          console.log("saved to database");
+      })
+      .catch(err => console.log(err));
   console.log("end");
   res.json(array);
 }
