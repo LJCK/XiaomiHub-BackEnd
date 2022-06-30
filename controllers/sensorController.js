@@ -49,14 +49,68 @@ const getOneTableStatus = async(req, res) => {
       }
   }
   console.log(array);
-  const sensor = new Sensor({level: 8, deskOccupancy: array});
-  sensor.save()
-      .then((result) => {
+  res.json(array);
+}
+
+const reset_mongoDB = ()=>{
+  const totalTable = 2
+  let array = []
+  for (i = 0; i < totalTable; i++){
+    array.push("unoccupied");
+  }
+
+  Sensor.findOneAndReplace({level:8}, {level: 8, deskOccupancy: array})
+  .then((result) => {
           console.log("saved to database");
       })
       .catch(err => console.log(err));
-  console.log("end");
-  res.json(array);
+
+}
+
+const update_mongoDB=async()=>{
+  const totalTable = 2
+  let array = []
+  await Sensor.find({"level":8}).then((result)=>{
+
+    array= result[0].deskOccupancy
+  }).catch(err =>console.log(err)) 
+  console.log(array)
+
+  for(z=0; z < totalTable; z++){
+    let ratio = 0;
+    switch (array[z]){
+      case "unoccupied":
+        ratio = await check_sensor(z+1,4);
+        console.log("table %d unoccupied",z+1);
+        console.log(ratio);
+        if (ratio >0.5){
+          console.log("change to occupied");
+          array[z]="occupied";
+        }
+        break;
+      case "occupied":
+        ratio = await check_sensor(z+1,60);
+        console.log("table %d occupied",z+1);
+        console.log(ratio);
+        if (ratio<0.3){
+          console.log("change to unoccupied");
+          array[z]="unoccupied";
+        }
+        break;
+      default:
+        res.status(400).send("Wrong table status passed over.");
+        break
+      }
+  }
+  // console.log(array);
+
+  // const sensor = new Sensor();
+  await Sensor.findOneAndReplace({level:8}, {level: 8, deskOccupancy: array})
+  .then((result) => {
+          console.log("saved to database");
+      })
+      .catch(err => console.log(err));
+  
 }
 
 const check_sensor = async(id,time) => {
@@ -89,5 +143,7 @@ return ratio;
 }
 
 module.exports = {
-  getOneTableStatus
+  getOneTableStatus,
+  update_mongoDB,
+  reset_mongoDB
 }

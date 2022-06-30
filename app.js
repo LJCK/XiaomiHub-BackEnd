@@ -1,9 +1,11 @@
 const express = require('express');
-const { result } = require('lodash');
+// const { result } = require('lodash');
 const mongoose = require('mongoose');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const sensorRoutes = require('./routes/sensorRoutes');
+const sensorController = require("./controllers/sensorController")
+const cron = require('node-cron');
 // const multer = require('multer') // v1.0.5
 // const upload = multer() // for parsing multipart/form-data
 
@@ -29,3 +31,14 @@ app.get('/',(req,res)=>{
 })
 
 app.use('/sensors',sensorRoutes);
+
+// cron.schedule('* * * * * *', () => {
+//   sensorController.update_mongoDB()
+// });
+
+cron.schedule('0-30 */1 * 7-12,13-19 * *', () => {
+  sensorController.update_mongoDB()
+});
+cron.schedule('0 0 0 6 * *', () => {
+  sensorController.reset_mongoDB()
+});
