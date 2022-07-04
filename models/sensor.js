@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const occupancySchema = new Schema({
+const oldOccupancySchema = new Schema({
     level: {
         type: Number,
         required: true
@@ -12,9 +12,20 @@ const occupancySchema = new Schema({
     }
 });
 
+const newOccupancySchema = new Schema({
+    level: {
+        type: Number,
+        required: true
+    },
+    deskOccupancy: {
+        type: Object,
+        required: true
+    }
+})
+
 //create a model
-const newOccupancy = mongoose.model('Current Occupancy', occupancySchema);
-const oldOccupancy = mongoose.model('Old Occupancy', occupancySchema);
+const newOccupancy = mongoose.model('Current Occupancy', newOccupancySchema);
+const oldOccupancy = mongoose.model('Old Occupancy', oldOccupancySchema);
 
 
 // const table_obj_to_json = (id, status)=>{

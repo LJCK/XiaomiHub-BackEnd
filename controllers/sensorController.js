@@ -1,31 +1,31 @@
 const Influx = require('influx');
+const { result } = require('lodash');
 const moment = require("moment");
 // const oldOccupancy = require('../models/sensor');
 const {newOccupancy, oldOccupancy} = require("../models/sensor")
 
-// const client = new Influx.InfluxDB({
-//   database: "homeassistant",
-//   host: "192.168.197.48",
-//   port:8086,
-//   username: "admin",
-//   password: "admin"
-// });
+const client = new Influx.InfluxDB({
+  database: "homeassistant",
+  host: "10.0.128.11",
+  port:8086,
+  username: "admin",
+  password: "admin"
+});
 // moment.utc().local().format('YYYY-MM-DD HH:mm:ss')
 const resetStatus=(req,res)=>{
   let level = 8
-  newOccupancy.findOneAndUpdate({level:level},{"$push":{deskOccupancy: resetTableStatus()}},(err, data)=>{
+  oldOccupancy.findOneAndUpdate({level:level},{"$push":{deskOccupancy: resetTableStatus()}},(err, data)=>{
     if(err){
       res.status(404).send(err)
     }else{
       if (data == null){
-        let c = newOccupancy({level: level, deskOccupancy: resetTableStatus()})
+        let c = oldOccupancy({level: level, deskOccupancy: resetTableStatus()})
         c.save()
         res.status(200).send("save to db")
       }else{
         res.status(200).send("db updated")
       }
     }
-    
   })
   // const c = new Occupancy()
   // c.level = 8
@@ -37,8 +37,8 @@ const resetStatus=(req,res)=>{
 const resetTableStatus=()=>{
   let dic = new Object()
   let tableStatus = new Object()
-  for(i=0;i<64;i++){
-    tableStatus[i] = "unoccupied"
+  for(i=1;i<=64;i++){
+    tableStatus["table "+i] = "unoccupied"
   }
   dic = {
     date : moment.utc().local().format('YYYY-MM-DD HH:mm:ss'),
@@ -47,8 +47,32 @@ const resetTableStatus=()=>{
   return dic
 }
 
-// const getOneTableStatus = async(req, res) => {
+const getTableStatus = async(req, res) => {
+  const totalTable = req.query.totalTable;
+  const level = req.query.level;
+  newOccupancy.findOne({level:level}).then((result)=>{
+    if(result == null){
+      let c = newOccupancy({level: level, deskOccupancy: generate_current_table_status(totalTable)})
+      c.save()
+      res.status(200).send("save to db")
+    }
+  }).catch(err=> console.log(err))
+  // const new_table_status = generate_current_table_status(totalTable,newOccupancy.findOne({level:level}).deskOccupancy)
+  // newOccupancy.findOneAndUpdate({level:level},{deskOccupancy:new_table_status})
+}
+
+const generate_current_table_status= async(totalTable, array=[])=>{
+  let tableStatus = new Object()
+  if(array ==[]){
+    for(i=1;i<=totalTable;i++){
+      tableStatus["table "+i] = "unoccupied"
+    }
+  }
+
   
+  
+}
+
 //   const totalTable = req.query.totalTable;
 //   const array = req.body.array;
 //   if (array.length < totalTable){
@@ -149,41 +173,52 @@ const resetTableStatus=()=>{
   
 // }
 
-// const check_sensor = async(id,time) => {
-//   let ratio = 0;
-//   try{
-//     let duration = 0;
-//     let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "homeassistant"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`);
-//   // console.log(results)
-//     for (i=0; i < results.length; i++){
-//       if (i == results.length - 1){
-//         break;
-//       }
-//       if(results[i].distinct_value == 0){
-//         continue;
-//       }
-//       start = results[i].time._nanoISO.slice(11,-1);
-//       end = results[++i].time._nanoISO.slice(11,-1);
-//       let t1 = moment(start,"hh:mm:ss");
-//       let t2 = moment(end,"hh:mm:ss");
-//       let diff = moment(t2.diff(t1)).format("ss");
-//       duration+=parseInt(diff);
-//     }
-//     ratio = duration/(time*60);
-//   }
-//   catch(err){
-//     console.log(err);
-//   }
-// return ratio;
+const check_sensor = async(id,time) => {
+  let end = moment()
+  let start = moment.utc().subtract(time, 'minutes')
+  console.log("start\n",start)
+  console.log("end\n",end)
+  let t1 = 0,t2=0, diff =0, time1 =0, time2=0, duration=0, ratio =0
+  try{
+    let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "homeassistant"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`);
+    // console.log(results)
+    for (i=0; i < results.length; i++){
+      if(i === 0 && results[i].distinct_value == 0){
+        // condition when first data is 0
+        time2 = results[0].time._nanoISO.slice(11,-1);
+        t2 = moment(time2,"hh:mm:ss").add(8,'hours');
+        diff = t2.diff(start,'seconds');
+        // console.log(i)
+        // console.log("difference\n",t2,"-",start,"=",diff)
+      }
+      else if(i === results.length - 1 && results[i].distinct_value ==1){
+        // condition when last data is 1
+        time1 = results[i].time._nanoISO.slice(11,-1);
+        t1 = moment(time1,"hh:mm:ss").add(8,'hours');
+        diff = end.diff(t1,'seconds');
+        // console.log(i)
+        // console.log("difference\n",end,"-",t1,"=",diff)
+      }
+      else if(results[i].distinct_value == 0){
+        time1 = results[i-1].time._nanoISO.slice(11,-1);
+        time2 = results[i].time._nanoISO.slice(11,-1);
+        t1 = moment(time1,"hh:mm:ss");
+        t2 = moment(time2,"hh:mm:ss");
+        diff = t2.diff(t1,'seconds');
+        // console.log(i)
+        // console.log("difference\n",t2,"-",t1,"=",diff)
+      }
+      duration+=parseInt(diff);
+    }
+    ratio = duration/(time*60);
+  }catch(error){
+    console.log(error)
+  }
+return ratio;
 
-// }
-
-// module.exports = {
-//   getOneTableStatus,
-//   update_mongoDB,
-//   reset_mongoDB
-// }
+}
 
 module.exports={
-  resetStatus
+  resetStatus,
+  getTableStatus
 }
