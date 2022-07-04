@@ -1,149 +1,189 @@
 const Influx = require('influx');
 const moment = require("moment");
-const Sensor = require('../models/sensor');
+// const oldOccupancy = require('../models/sensor');
+const {newOccupancy, oldOccupancy} = require("../models/sensor")
 
-const client = new Influx.InfluxDB({
-  database: "homeassistant",
-  host: "192.168.197.48",
-  port:8086,
-  username: "admin",
-  password: "admin"
-});
-
-
-const getOneTableStatus = async(req, res) => {
-  
-  const totalTable = req.query.totalTable;
-  const array = req.body.array;
-  if (array.length < totalTable){
-    console.log("now creating array");
-    for (i = 0; i < totalTable; i++){
-      array.push("unoccupied");
+// const client = new Influx.InfluxDB({
+//   database: "homeassistant",
+//   host: "192.168.197.48",
+//   port:8086,
+//   username: "admin",
+//   password: "admin"
+// });
+// moment.utc().local().format('YYYY-MM-DD HH:mm:ss')
+const resetStatus=(req,res)=>{
+  let level = 8
+  newOccupancy.findOneAndUpdate({level:level},{"$push":{deskOccupancy: resetTableStatus()}},(err, data)=>{
+    if(err){
+      res.status(404).send(err)
+    }else{
+      if (data == null){
+        let c = newOccupancy({level: level, deskOccupancy: resetTableStatus()})
+        c.save()
+        res.status(200).send("save to db")
+      }else{
+        res.status(200).send("db updated")
+      }
     }
-  }
+    
+  })
+  // const c = new Occupancy()
+  // c.level = 8
+  // c.deskOccupancy = getTableStatus()
+  // c.updateOne()
+  // console.log("save to db")
+}
   
-  for(z=0; z < totalTable; z++){
-    let ratio = 0;
-    switch (array[z]){
-      case "unoccupied":
-        ratio = await check_sensor(z+1,4);
-        console.log("table %d unoccupied",z+1);
-        console.log(ratio);
-        if (ratio >0.5){
-          console.log("change to occupied");
-          array[z]="occupied";
-        }
-        break;
-      case "occupied":
-        ratio = await check_sensor(z+1,60);
-        console.log("table %d occupied",z+1);
-        console.log(ratio);
-        if (ratio<0.3){
-          console.log("change to unoccupied");
-          array[z]="unoccupied";
-        }
-        break;
-      default:
-        res.status(400).send("Wrong table status passed over.");
-        break
-      }
+const resetTableStatus=()=>{
+  let dic = new Object()
+  let tableStatus = new Object()
+  for(i=0;i<64;i++){
+    tableStatus[i] = "unoccupied"
   }
-  console.log(array);
-  res.json(array);
+  dic = {
+    date : moment.utc().local().format('YYYY-MM-DD HH:mm:ss'),
+    status : tableStatus
+  }
+  return dic
 }
 
-const reset_mongoDB = ()=>{
-  const totalTable = 2
-  let array = []
-  for (i = 0; i < totalTable; i++){
-    array.push("unoccupied");
-  }
-
-  Sensor.findOneAndReplace({level:8}, {level: 8, deskOccupancy: array})
-  .then((result) => {
-          console.log("saved to database");
-      })
-      .catch(err => console.log(err));
-
-}
-
-const update_mongoDB=async()=>{
-  const totalTable = 2
-  let array = []
-  await Sensor.find({"level":8}).then((result)=>{
-
-    array= result[0].deskOccupancy
-  }).catch(err =>console.log(err)) 
-  console.log(array)
-
-  for(z=0; z < totalTable; z++){
-    let ratio = 0;
-    switch (array[z]){
-      case "unoccupied":
-        ratio = await check_sensor(z+1,4);
-        console.log("table %d unoccupied",z+1);
-        console.log(ratio);
-        if (ratio >0.5){
-          console.log("change to occupied");
-          array[z]="occupied";
-        }
-        break;
-      case "occupied":
-        ratio = await check_sensor(z+1,60);
-        console.log("table %d occupied",z+1);
-        console.log(ratio);
-        if (ratio<0.3){
-          console.log("change to unoccupied");
-          array[z]="unoccupied";
-        }
-        break;
-      default:
-        res.status(400).send("Wrong table status passed over.");
-        break
-      }
-  }
-  // console.log(array);
-
-  // const sensor = new Sensor();
-  await Sensor.findOneAndReplace({level:8}, {level: 8, deskOccupancy: array})
-  .then((result) => {
-          console.log("saved to database");
-      })
-      .catch(err => console.log(err));
+// const getOneTableStatus = async(req, res) => {
   
-}
+//   const totalTable = req.query.totalTable;
+//   const array = req.body.array;
+//   if (array.length < totalTable){
+//     console.log("now creating array");
+//     for (i = 0; i < totalTable; i++){
+//       array.push("unoccupied");
+//     }
+//   }
+  
+//   for(z=0; z < totalTable; z++){
+//     let ratio = 0;
+//     switch (array[z]){
+//       case "unoccupied":
+//         ratio = await check_sensor(z+1,4);
+//         console.log("table %d unoccupied",z+1);
+//         console.log(ratio);
+//         if (ratio >0.5){
+//           console.log("change to occupied");
+//           array[z]="occupied";
+//         }
+//         break;
+//       case "occupied":
+//         ratio = await check_sensor(z+1,60);
+//         console.log("table %d occupied",z+1);
+//         console.log(ratio);
+//         if (ratio<0.3){
+//           console.log("change to unoccupied");
+//           array[z]="unoccupied";
+//         }
+//         break;
+//       default:
+//         res.status(400).send("Wrong table status passed over.");
+//         break
+//       }
+//   }
+//   console.log(array);
+//   res.json(array);
+// }
 
-const check_sensor = async(id,time) => {
-  let ratio = 0;
-  try{
-    let duration = 0;
-    let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "homeassistant"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`);
-  // console.log(results)
-    for (i=0; i < results.length; i++){
-      if (i == results.length - 1){
-        break;
-      }
-      if(results[i].distinct_value == 0){
-        continue;
-      }
-      start = results[i].time._nanoISO.slice(11,-1);
-      end = results[++i].time._nanoISO.slice(11,-1);
-      let t1 = moment(start,"hh:mm:ss");
-      let t2 = moment(end,"hh:mm:ss");
-      let diff = moment(t2.diff(t1)).format("ss");
-      duration+=parseInt(diff);
-    }
-    ratio = duration/(time*60);
-  }
-  catch(err){
-    console.log(err);
-  }
-return ratio;
+// const reset_mongoDB = ()=>{
+//   const totalTable = 2
+//   let array = []
+//   for (i = 0; i < totalTable; i++){
+//     array.push("unoccupied");
+//   }
 
-}
+//   Sensor.findOneAndReplace({level:8}, {level: 8, deskOccupancy: array})
+//   .then((result) => {
+//           console.log("saved to database");
+//       })
+//       .catch(err => console.log(err));
 
-module.exports = {
-  getOneTableStatus,
-  update_mongoDB,
-  reset_mongoDB
+// }
+
+// const update_mongoDB=async()=>{
+//   const totalTable = 2
+//   let array = []
+//   await Sensor.find({"level":8}).then((result)=>{
+
+//     array= result[0].deskOccupancy
+//   }).catch(err =>console.log(err)) 
+//   console.log(array)
+
+//   for(z=0; z < totalTable; z++){
+//     let ratio = 0;
+//     switch (array[z]){
+//       case "unoccupied":
+//         ratio = await check_sensor(z+1,4);
+//         console.log("table %d unoccupied",z+1);
+//         console.log(ratio);
+//         if (ratio >0.5){
+//           console.log("change to occupied");
+//           array[z]="occupied";
+//         }
+//         break;
+//       case "occupied":
+//         ratio = await check_sensor(z+1,60);
+//         console.log("table %d occupied",z+1);
+//         console.log(ratio);
+//         if (ratio<0.3){
+//           console.log("change to unoccupied");
+//           array[z]="unoccupied";
+//         }
+//         break;
+//       default:
+//         res.status(400).send("Wrong table status passed over.");
+//         break
+//       }
+//   }
+//   // console.log(array);
+
+//   // const sensor = new Sensor();
+//   await Sensor.findOneAndReplace({level:8}, {level: 8, deskOccupancy: array})
+//   .then((result) => {
+//           console.log("saved to database");
+//       })
+//       .catch(err => console.log(err));
+  
+// }
+
+// const check_sensor = async(id,time) => {
+//   let ratio = 0;
+//   try{
+//     let duration = 0;
+//     let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "homeassistant"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`);
+//   // console.log(results)
+//     for (i=0; i < results.length; i++){
+//       if (i == results.length - 1){
+//         break;
+//       }
+//       if(results[i].distinct_value == 0){
+//         continue;
+//       }
+//       start = results[i].time._nanoISO.slice(11,-1);
+//       end = results[++i].time._nanoISO.slice(11,-1);
+//       let t1 = moment(start,"hh:mm:ss");
+//       let t2 = moment(end,"hh:mm:ss");
+//       let diff = moment(t2.diff(t1)).format("ss");
+//       duration+=parseInt(diff);
+//     }
+//     ratio = duration/(time*60);
+//   }
+//   catch(err){
+//     console.log(err);
+//   }
+// return ratio;
+
+// }
+
+// module.exports = {
+//   getOneTableStatus,
+//   update_mongoDB,
+//   reset_mongoDB
+// }
+
+module.exports={
+  resetStatus
 }

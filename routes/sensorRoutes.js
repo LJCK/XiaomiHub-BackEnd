@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const sensorController = require('../controllers/sensorController')
 
-router.get('/checkStatus',sensorController.getOneTableStatus)
+router.get('/resetStatus',sensorController.resetStatus)
+// router.get('/checkStatus',sensorController.getOneTableStatus)
 // router.post('/checkStatus',tableController.getOneTableStatus)
 
 // router.get('/:id',(req,res)=>{

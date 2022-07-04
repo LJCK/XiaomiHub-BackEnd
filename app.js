@@ -14,7 +14,7 @@ const cron = require('node-cron');
 const app = express();
 
 //connect to mongodb
-const dbURI = 'mongodb+srv://qinxiang:qinxiang@cluster0.ojjsesl.mongodb.net/?retryWrites=true&w=majority'
+const dbURI = 'mongodb+srv://zhiheng:zhiheng@cluster0.s7nla.mongodb.net/?retryWrites=true&w=majority'
 mongoose.connect(dbURI, {useNewUrlParser: true, useUnifiedTopology: true }) //its an async task, returns something like a promise
         .then(result => app.listen('3001', () => console.log('connected to db, server started')))
         .catch(err => console.log(err));
@@ -36,9 +36,9 @@ app.use('/sensors',sensorRoutes);
 //   sensorController.update_mongoDB()
 // });
 
-cron.schedule('0-30 */1 * 7-12,13-19 * *', () => {
-  sensorController.update_mongoDB()
-});
-cron.schedule('0 0 0 6 * *', () => {
-  sensorController.reset_mongoDB()
-});
+// cron.schedule('* */1 7-12,13-19 * * *', () => {
+//   sensorController.update_mongoDB()
+// });
+// cron.schedule('0 0 0 6 * *', () => {
+//   sensorController.reset_mongoDB()
+// });

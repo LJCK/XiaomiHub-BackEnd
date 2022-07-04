@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const sensorSchema = new Schema({
+const occupancySchema = new Schema({
     level: {
         type: Number,
         required: true
@@ -13,7 +13,8 @@ const sensorSchema = new Schema({
 });
 
 //create a model
-const Sensor = mongoose.model('Sensor', sensorSchema);
+const newOccupancy = mongoose.model('Current Occupancy', occupancySchema);
+const oldOccupancy = mongoose.model('Old Occupancy', occupancySchema);
 
 
 // const table_obj_to_json = (id, status)=>{
@@ -24,4 +25,4 @@ const Sensor = mongoose.model('Sensor', sensorSchema);
 //   return data
 // }
 
-module.exports = Sensor;
+module.exports = {newOccupancy,oldOccupancy}
