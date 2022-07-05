@@ -12,14 +12,28 @@ const oldOccupancySchema = new Schema({
     }
 });
 
+const deskObjSchema = new Schema({
+    tableID: {
+        type: Number,
+        required: true
+    },
+    status: {
+        type: String,
+        required: true
+    },
+    expiryTime: {
+        type: String,
+        required: true
+    }
+})
+
 const newOccupancySchema = new Schema({
     level: {
         type: Number,
         required: true
     },
     deskOccupancy: {
-        type: Array,
-        required: true
+        type: Object
     }
 })
 

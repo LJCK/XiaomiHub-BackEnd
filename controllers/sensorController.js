@@ -5,11 +5,11 @@ const moment = require("moment");
 const {newOccupancy, oldOccupancy} = require("../models/sensor")
 
 const client = new Influx.InfluxDB({
-  database: "homeassistant",
+  database: "level 8",
   host: "10.0.128.68",
   port:8086,
-  username: "admin",
-  password: "admin"
+  username: "liang",
+  password: "liang"
 });
 // moment.utc().local().format('YYYY-MM-DD HH:mm:ss')
 
@@ -22,8 +22,8 @@ const update_new_status= async(req, res)=>{
     if (data == null){
       let c = newOccupancy({level: level, deskOccupancy: generate_current_table_status(level,totalTable)})
       try{
-        // await c.save()
-        res.status(200).send("save to db")
+        await c.save()
+        res.status(200).send("saved to db")
       }catch(error){console.log(error)}
     }else{
       // await newOccupancy.findOneAndUpdate({level: level},{deskOccupancy: generate_current_table_status(level,totalTable,data.deskOccupancy)},(error,data)=>{
@@ -73,17 +73,17 @@ const update_new_status= async(req, res)=>{
 
 const generate_current_table_status= async(level, totalTable, deskArr=[])=>{
   
-  if(!deskArr.length){
+  if(!deskArr.length){ //if no record in database, create new record
     for(i=1;i<=totalTable;i++){
       tableStatus = new Object()
       tableStatus["tableID"] = i,
       tableStatus["status"] = "unoccupied",
-      tableStatus["expiry_time"] = moment.utc().local().format("HH:mm:ss")
+      tableStatus["expiryTime"] = moment.utc().local().format("HH:mm:ss")
       deskArr.push(tableStatus)
     }
   }
 
-  for(z=0; z < totalTable; z++){
+  for(z=0; z < totalTable; z++){ //check occupancy status of each table, and update deskArr accordingly
     let ratio = 0;
     ratio = await check_sensor(deskArr[z].tableID,5);
     if (ratio >0.5){
@@ -97,29 +97,9 @@ const generate_current_table_status= async(level, totalTable, deskArr=[])=>{
         }
       }
     }
-    
-    switch (deskArr[z].status){
-      case "unoccupied":
-        
-        if (ratio >0.5){
-          deskArr[z].status="occupied";
-          deskArr[z].expiry_time = moment.utc().local().add(2,"hours").format("HH:mm:ss")
-        }
-        break;
-      case "occupied":
-        ratio = await check_sensor(deskArr[z].tableID,5);
-        if (ratio<0.5){
-          console.log("change to unoccupied");
-          tableStatus[z]="unoccupied";
-        }
-        break;
-      default:
-        res.status(400).send("Wrong table status passed over.");
-        break
-      }
   }
-  
-
+  console.log(deskArr)
+  return deskArr;
 }
 
 const resetTableStatus=()=>{
@@ -242,7 +222,7 @@ const check_sensor = async(id,time) => {
   console.log("end\n",end)
   let t1 = 0,t2=0, diff =0, time1 =0, time2=0, duration=0, ratio =0
   try{
-    let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "home assistant"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`);
+    let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "level 8"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`);
     // console.log(results)
     for (i=0; i < results.length; i++){
       if(i === 0 && results[i].distinct_value == 0){
