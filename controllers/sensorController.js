@@ -6,34 +6,122 @@ const {newOccupancy, oldOccupancy} = require("../models/sensor")
 
 const client = new Influx.InfluxDB({
   database: "homeassistant",
-  host: "10.0.128.11",
+  host: "10.0.128.68",
   port:8086,
   username: "admin",
   password: "admin"
 });
 // moment.utc().local().format('YYYY-MM-DD HH:mm:ss')
-const resetStatus=(req,res)=>{
-  let level = 8
-  oldOccupancy.findOneAndUpdate({level:level},{"$push":{deskOccupancy: resetTableStatus()}},(err, data)=>{
-    if(err){
-      res.status(404).send(err)
-    }else{
-      if (data == null){
-        let c = oldOccupancy({level: level, deskOccupancy: resetTableStatus()})
-        c.save()
+
+const update_new_status= async(req, res)=>{
+  const totalTable = req.query.totalTable;
+  const level = req.query.level;
+  try{
+    let data = await newOccupancy.findOne({level: level})
+    
+    if (data == null){
+      let c = newOccupancy({level: level, deskOccupancy: generate_current_table_status(level,totalTable)})
+      try{
+        // await c.save()
         res.status(200).send("save to db")
+      }catch(error){console.log(error)}
+    }else{
+      // await newOccupancy.findOneAndUpdate({level: level},{deskOccupancy: generate_current_table_status(level,totalTable,data.deskOccupancy)},(error,data)=>{
+      //   if(error){
+      //     console.log("error\n",error)
+      //   }else{
+      //     console.log("data\n",data)
+      //   }
+      // })
+    }
+  }catch(error){console.log(error)}
+  
+  
+}
+
+// const log_old_status=(level, array)=>{
+//   oldOccupancy.findOneAndUpdate({level:level},{"$push":{deskOccupancy: resetTableStatus()}},(err, data)=>{
+//     if(err){
+//       res.status(404).send(err)
+//     }else{
+//       if (data == null){
+//         let c = oldOccupancy({level: level, deskOccupancy: resetTableStatus()})
+//         c.save()
+//         res.status(200).send("save to db")
+//       }else{
+//         res.status(200).send("db updated")
+//       }
+//     }
+//   })
+// }
+  
+
+
+// const getTableStatus = async(req, res) => {
+//   const totalTable = req.query.totalTable;
+//   const level = req.query.level;
+//   newOccupancy.findOne({level:level}).then((result)=>{
+//     if(result == null){
+//       let c = newOccupancy({level: level, deskOccupancy: generate_current_table_status(totalTable)})
+//       c.save()
+//       res.status(200).send("save to db")
+//     }
+//   }).catch(err=> console.log(err))
+  // const new_table_status = generate_current_table_status(totalTable,newOccupancy.findOne({level:level}).deskOccupancy)
+  // newOccupancy.findOneAndUpdate({level:level},{deskOccupancy:new_table_status})
+// }
+
+const generate_current_table_status= async(level, totalTable, deskArr=[])=>{
+  
+  if(!deskArr.length){
+    for(i=1;i<=totalTable;i++){
+      tableStatus = new Object()
+      tableStatus["tableID"] = i,
+      tableStatus["status"] = "unoccupied",
+      tableStatus["expiry_time"] = moment.utc().local().format("HH:mm:ss")
+      deskArr.push(tableStatus)
+    }
+  }
+
+  for(z=0; z < totalTable; z++){
+    let ratio = 0;
+    ratio = await check_sensor(deskArr[z].tableID,5);
+    if (ratio >0.5){
+      if (deskArr[z].status == "unoccupied"){
+        deskArr[z].status="occupied";
+        deskArr[z].expiry_time = moment.utc().local().add(2,"hours").format("HH:mm:ss")
       }else{
-        res.status(200).send("db updated")
+        let expiry_time = moment(deskArr[z].expiry_time, 'hh:mm:ss')
+        if(expiry_time.isBefore(moment.utc().local())){
+          deskArr[z].status="unoccupied";        
+        }
       }
     }
-  })
-  // const c = new Occupancy()
-  // c.level = 8
-  // c.deskOccupancy = getTableStatus()
-  // c.updateOne()
-  // console.log("save to db")
-}
+    
+    switch (deskArr[z].status){
+      case "unoccupied":
+        
+        if (ratio >0.5){
+          deskArr[z].status="occupied";
+          deskArr[z].expiry_time = moment.utc().local().add(2,"hours").format("HH:mm:ss")
+        }
+        break;
+      case "occupied":
+        ratio = await check_sensor(deskArr[z].tableID,5);
+        if (ratio<0.5){
+          console.log("change to unoccupied");
+          tableStatus[z]="unoccupied";
+        }
+        break;
+      default:
+        res.status(400).send("Wrong table status passed over.");
+        break
+      }
+  }
   
+
+}
+
 const resetTableStatus=()=>{
   let dic = new Object()
   let tableStatus = new Object()
@@ -45,32 +133,6 @@ const resetTableStatus=()=>{
     status : tableStatus
   }
   return dic
-}
-
-const getTableStatus = async(req, res) => {
-  const totalTable = req.query.totalTable;
-  const level = req.query.level;
-  newOccupancy.findOne({level:level}).then((result)=>{
-    if(result == null){
-      let c = newOccupancy({level: level, deskOccupancy: generate_current_table_status(totalTable)})
-      c.save()
-      res.status(200).send("save to db")
-    }
-  }).catch(err=> console.log(err))
-  // const new_table_status = generate_current_table_status(totalTable,newOccupancy.findOne({level:level}).deskOccupancy)
-  // newOccupancy.findOneAndUpdate({level:level},{deskOccupancy:new_table_status})
-}
-
-const generate_current_table_status= async(totalTable, array=[])=>{
-  let tableStatus = new Object()
-  if(array ==[]){
-    for(i=1;i<=totalTable;i++){
-      tableStatus["table "+i] = "unoccupied"
-    }
-  }
-
-  
-  
 }
 
 //   const totalTable = req.query.totalTable;
@@ -180,7 +242,7 @@ const check_sensor = async(id,time) => {
   console.log("end\n",end)
   let t1 = 0,t2=0, diff =0, time1 =0, time2=0, duration=0, ratio =0
   try{
-    let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "homeassistant"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`);
+    let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "home assistant"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`);
     // console.log(results)
     for (i=0; i < results.length; i++){
       if(i === 0 && results[i].distinct_value == 0){
@@ -219,6 +281,5 @@ return ratio;
 }
 
 module.exports={
-  resetStatus,
-  getTableStatus
+  update_new_status
 }
