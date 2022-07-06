@@ -33,13 +33,9 @@ app.get('/',(req,res)=>{
 
 app.use('/sensors',sensorRoutes);
 
-// cron.schedule('* * * * * *', () => {
-//   sensorController.update_mongoDB()
-// });
-
-// cron.schedule('* */1 7-12,13-19 * * *', () => {
-//   sensorController.update_mongoDB()
-// });
-// cron.schedule('0 0 0 6 * *', () => {
-//   sensorController.reset_mongoDB()
-// });
+cron.schedule('* */5 7-12,13-19 * * *', () => {
+  sensorController.update_new_status(8,2)
+});
+cron.schedule('0 0 0 6 * *', () => {
+  sensorController.reset_new_status(8,2)
+});

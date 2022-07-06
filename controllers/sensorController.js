@@ -13,9 +13,11 @@ const client = new Influx.InfluxDB({
 });
 // moment.utc().local().format('YYYY-MM-DD HH:mm:ss')
 
-const update_new_status= async(req, res)=>{
-  const totalTable = req.query.totalTable;
-  const level = req.query.level;
+// const update_new_status= async(req, res)=>{
+const update_new_status= async(level, totalTable)=>{
+
+  // const totalTable = req.query.totalTable;
+  // const level = req.query.level;
   try{
     let data = await newOccupancy.findOne({level: level})
     
@@ -25,7 +27,7 @@ const update_new_status= async(req, res)=>{
       try{
         await c.save()
         await log_old_status(level,deskArr)
-        res.status(200).send("saved to empty db")
+        // res.status(200).send("saved to empty db")
       }catch(error){console.log(error)}
     }else{
       
@@ -35,7 +37,7 @@ const update_new_status= async(req, res)=>{
           console.log("error\n",error)
         }else{
           log_old_status(level,deskArr).then((res)).catch(error=>{console.log(error)})
-          res.status(200).send("saved to updated db")
+          // res.status(200).send("saved to updated db")
         }
       })
     }
@@ -44,7 +46,7 @@ const update_new_status= async(req, res)=>{
 }
 
 const log_old_status=async(level, deskArr)=>{
-  old_record = {deskArr, "time":moment.utc().local().format("HH:mm:ss")}
+  old_record = {deskArr, "time":moment.utc().local().format("DD-MM-YYYY HH:mm:ss")}
   oldOccupancy.findOneAndUpdate({level:level},{"$push":{deskOccupancy: old_record}}, (err, data)=>{
     if(err){
       res.status(404).send(err)
@@ -88,9 +90,11 @@ const generate_current_table_status= async(level, totalTable, deskArr=[])=>{
   return deskArr;
 }
 
-const reset_new_status= async(req,res)=>{
+// const reset_new_status= async(req,res)=>{
+const reset_new_status= async(level,totalTable)=>{
+
   deskArr =[]
-  let level =8, totalTable =2
+  // let level =8, totalTable =2
   for(i=1;i<=totalTable;i++){
     tableStatus = new Object()
     tableStatus["tableID"] = i,
@@ -106,8 +110,9 @@ const reset_new_status= async(req,res)=>{
       if(data == null){
         let new_push = newOccupancy({level: level, deskOccupancy: deskArr})
         await new_push.save()
-        res.status(200).send("reset db")
+        // res.status(200).send("reset db")
       }
+      log_old_status(level, deskArr)
     }
   })
   
