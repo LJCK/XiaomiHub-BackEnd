@@ -6,10 +6,10 @@ const {newOccupancy, oldOccupancy} = require("../models/sensor")
 
 const client = new Influx.InfluxDB({
   database: "level 8",
-  host: "10.0.128.68",
+  host: "10.0.128.64",
   port:8086,
-  username: "liang",
-  password: "liang"
+  username: "cpf",
+  password: "cpf"
 });
 // moment.utc().local().format('YYYY-MM-DD HH:mm:ss')
 
