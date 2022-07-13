@@ -1,43 +1,44 @@
 const Influx = require('influx');
 const { result } = require('lodash');
 const moment = require("moment");
+const {create_table_object, create_influx_query} = require("../objects/tableObjects")
 // const oldOccupancy = require('../models/sensor');
-const {newOccupancy, oldOccupancy} = require("../models/sensor")
+const {newOccupancy, oldOccupancy, loggingList} = require("../models/sensor")
 
 const client = new Influx.InfluxDB({
   database: "level 8",
-  host: "10.0.128.64",
+  host: "10.0.128.11",
   port:8086,
   username: "cpf",
   password: "cpf"
 });
 // moment.utc().local().format('YYYY-MM-DD HH:mm:ss')
 
-const update_new_status= async(req, res)=>{
-  const totalTable = req.query.totalTable;
-  const level = req.query.level;
-  try{
-    let data = await newOccupancy.findOne({level: level})
+// const update_new_status= async(req, res)=>{
+//   const totalTable = req.query.totalTable;
+//   const level = req.query.level;
+//   try{
+//     let data = await newOccupancy.findOne({level: level})
     
-    if (data == null){
-      let c = newOccupancy({level: level, deskOccupancy: generate_current_table_status(level,totalTable)})
-      try{
-        await c.save()
-        res.status(200).send("saved to db")
-      }catch(error){console.log(error)}
-    }else{
-      // await newOccupancy.findOneAndUpdate({level: level},{deskOccupancy: generate_current_table_status(level,totalTable,data.deskOccupancy)},(error,data)=>{
-      //   if(error){
-      //     console.log("error\n",error)
-      //   }else{
-      //     console.log("data\n",data)
-      //   }
-      // })
-    }
-  }catch(error){console.log(error)}
+//     if (data == null){
+//       let c = newOccupancy({level: level, deskOccupancy: generate_current_table_status(level,totalTable)})
+//       try{
+//         await c.save()
+//         res.status(200).send("saved to db")
+//       }catch(error){console.log(error)}
+//     }else{
+//       // await newOccupancy.findOneAndUpdate({level: level},{deskOccupancy: generate_current_table_status(level,totalTable,data.deskOccupancy)},(error,data)=>{
+//       //   if(error){
+//       //     console.log("error\n",error)
+//       //   }else{
+//       //     console.log("data\n",data)
+//       //   }
+//       // })
+//     }
+//   }catch(error){console.log(error)}
   
   
-}
+// }
 
 // const log_old_status=(level, array)=>{
 //   oldOccupancy.findOneAndUpdate({level:level},{"$push":{deskOccupancy: resetTableStatus()}},(err, data)=>{
@@ -71,8 +72,7 @@ const update_new_status= async(req, res)=>{
   // newOccupancy.findOneAndUpdate({level:level},{deskOccupancy:new_table_status})
 // }
 
-const generate_current_table_status= async(level, totalTable, deskArr=[])=>{
-  
+const generate_current_table_status= async(object)=>{
   if(!deskArr.length){ //if no record in database, create new record
     for(i=1;i<=totalTable;i++){
       tableStatus = new Object()
@@ -99,7 +99,7 @@ const generate_current_table_status= async(level, totalTable, deskArr=[])=>{
     }
   }
   console.log(deskArr)
-  return deskArr;
+  return objects;
 }
 
 const resetTableStatus=()=>{
@@ -114,45 +114,6 @@ const resetTableStatus=()=>{
   }
   return dic
 }
-
-//   const totalTable = req.query.totalTable;
-//   const array = req.body.array;
-//   if (array.length < totalTable){
-//     console.log("now creating array");
-//     for (i = 0; i < totalTable; i++){
-//       array.push("unoccupied");
-//     }
-//   }
-  
-//   for(z=0; z < totalTable; z++){
-//     let ratio = 0;
-//     switch (array[z]){
-//       case "unoccupied":
-//         ratio = await check_sensor(z+1,4);
-//         console.log("table %d unoccupied",z+1);
-//         console.log(ratio);
-//         if (ratio >0.5){
-//           console.log("change to occupied");
-//           array[z]="occupied";
-//         }
-//         break;
-//       case "occupied":
-//         ratio = await check_sensor(z+1,60);
-//         console.log("table %d occupied",z+1);
-//         console.log(ratio);
-//         if (ratio<0.3){
-//           console.log("change to unoccupied");
-//           array[z]="unoccupied";
-//         }
-//         break;
-//       default:
-//         res.status(400).send("Wrong table status passed over.");
-//         break
-//       }
-//   }
-//   console.log(array);
-//   res.json(array);
-// }
 
 // const reset_mongoDB = ()=>{
 //   const totalTable = 2
@@ -169,97 +130,113 @@ const resetTableStatus=()=>{
 
 // }
 
-// const update_mongoDB=async()=>{
-//   const totalTable = 2
-//   let array = []
-//   await Sensor.find({"level":8}).then((result)=>{
+const update_new_status=async()=>{
+  const table_objects = await create_table_object()
+  console.log("old table object\n", table_objects)
+  const entities = create_influx_query()
+  const temp = await check_sensor(table_objects,entities,5);
+  console.log("new table object\n",temp)
+  // for (let obj in objects){
+  //   try{
+  //     let table_record =  await newOccupancy.findById({'_id':obj})
+  //     if(table_record == null){
+  //       await generate_current_table_status(objects[obj])
+  //     }else{
 
-//     array= result[0].deskOccupancy
-//   }).catch(err =>console.log(err)) 
-//   console.log(array)
-
-//   for(z=0; z < totalTable; z++){
-//     let ratio = 0;
-//     switch (array[z]){
-//       case "unoccupied":
-//         ratio = await check_sensor(z+1,4);
-//         console.log("table %d unoccupied",z+1);
-//         console.log(ratio);
-//         if (ratio >0.5){
-//           console.log("change to occupied");
-//           array[z]="occupied";
-//         }
-//         break;
-//       case "occupied":
-//         ratio = await check_sensor(z+1,60);
-//         console.log("table %d occupied",z+1);
-//         console.log(ratio);
-//         if (ratio<0.3){
-//           console.log("change to unoccupied");
-//           array[z]="unoccupied";
-//         }
-//         break;
-//       default:
-//         res.status(400).send("Wrong table status passed over.");
-//         break
-//       }
-//   }
-//   // console.log(array);
-
-//   // const sensor = new Sensor();
-//   await Sensor.findOneAndReplace({level:8}, {level: 8, deskOccupancy: array})
-//   .then((result) => {
-//           console.log("saved to database");
-//       })
-//       .catch(err => console.log(err));
+  //     }
+  //   }catch(error){
+  //     console.log(error)
+  //   }
+  // }
   
-// }
+}
 
-const check_sensor = async(id,time) => {
+const check_sensor = async(table_objects,entities,query_time) => {
   let end = moment()
-  let start = moment.utc().subtract(time, 'minutes')
-  console.log("start\n",start)
-  console.log("end\n",end)
-  let t1 = 0,t2=0, diff =0, time1 =0, time2=0, duration=0, ratio =0
+  let start = moment.utc().subtract(query_time, 'minutes')
+  
   try{
-    let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "level 8"."autogen"."state" WHERE time < now() AND time>= (now()-${time}m) AND "entity_id"='vibration_sensor_${id}'GROUP BY time(1s) FILL(null)`);
-    // console.log(results)
-    for (i=0; i < results.length; i++){
-      if(i === 0 && results[i].distinct_value == 0){
-        // condition when first data is 0
-        time2 = results[0].time._nanoISO.slice(11,-1);
-        t2 = moment(time2,"hh:mm:ss").add(8,'hours');
-        diff = t2.diff(start,'seconds');
-        // console.log(i)
-        // console.log("difference\n",t2,"-",start,"=",diff)
-      }
-      else if(i === results.length - 1 && results[i].distinct_value ==1){
-        // condition when last data is 1
-        time1 = results[i].time._nanoISO.slice(11,-1);
-        t1 = moment(time1,"hh:mm:ss").add(8,'hours');
-        diff = end.diff(t1,'seconds');
-        // console.log(i)
-        // console.log("difference\n",end,"-",t1,"=",diff)
-      }
-      else if(results[i].distinct_value == 0){
-        time1 = results[i-1].time._nanoISO.slice(11,-1);
-        time2 = results[i].time._nanoISO.slice(11,-1);
-        t1 = moment(time1,"hh:mm:ss");
-        t2 = moment(time2,"hh:mm:ss");
-        diff = t2.diff(t1,'seconds');
-        // console.log(i)
-        // console.log("difference\n",t2,"-",t1,"=",diff)
-      }
-      duration+=parseInt(diff);
+    let results = await client.query(`SELECT distinct("value") AS "distinct_value" FROM "level 8"."autogen"."state" WHERE time < now() AND time>= (now()-${query_time}m) AND (${entities}) GROUP BY time(1s), "entity_id" FILL(null)`);
+    console.log(results)
+    // objects['nv_ta_l8_2'].push(results[0])
+    for(i = 0;i<results.length;i++){
+      influx_time = results[i].time._nanoISO.slice(11,-1);
+      formatted_time = moment(influx_time,"hh:mm:ss").add(8,'hours');
+      table_objects[results[i].entity_id].arr.push({time: formatted_time,distinct_value: results[i].distinct_value})
     }
-    ratio = duration/(time*60);
+    for(let obj in table_objects){
+      const data = table_objects[obj].arr
+      let t1 = 0,t2=0, diff =0, duration=0
+      for (i=0; i < data.length; i++){
+        if(i === 0 && data[i].distinct_value == 0){
+          // condition when first data is 0
+          t2 = data[i].time
+          diff = t2.diff(start,'seconds');
+          // console.log(i)
+          // console.log("difference\n",t2,"-",start,"=",diff)
+        }
+        else if(i === data.length - 1 && data[i].distinct_value ==1){
+          // condition when last data is 1
+          t1 = data[i].time
+          diff = end.diff(t1,'seconds');
+          // console.log(i)
+          // console.log("difference\n",end,"-",t1,"=",diff)
+        }
+        else if(data[i].distinct_value == 0){
+          t1 = data[i-1].time
+          t2 = data[i].time
+          diff = t2.diff(t1,'seconds');
+          // console.log(i)
+          // console.log("difference\n",t2,"-",t1,"=",diff)
+        }
+        duration+=parseInt(diff);
+        // console.log("duration\n",duration)
+      }
+      table_objects[obj].ratio = duration/(query_time*60);
+      // console.log("ratio\n",duration,'/',query_time*60,'=',table_objects[obj].ratio)
+      console.log(`${obj}`,table_objects[obj].ratio)
+    }
+    // for (i=0; i < results.length; i++){
+    //   if(i === 0 && results[i].distinct_value == 0){
+    //     // condition when first data is 0
+    //     time2 = results[0].time._nanoISO.slice(11,-1);
+    //     t2 = moment(time2,"hh:mm:ss").add(8,'hours');
+    //     diff = t2.diff(start,'seconds');
+    //     // console.log(i)
+    //     // console.log("difference\n",t2,"-",start,"=",diff)
+    //   }
+    //   else if(i === results.length - 1 && results[i].distinct_value ==1){
+    //     // condition when last data is 1
+    //     time1 = results[i].time._nanoISO.slice(11,-1);
+    //     t1 = moment(time1,"hh:mm:ss").add(8,'hours');
+    //     diff = end.diff(t1,'seconds');
+    //     // console.log(i)
+    //     // console.log("difference\n",end,"-",t1,"=",diff)
+    //   }
+    //   else if(results[i].distinct_value == 0){
+    //     time1 = results[i-1].time._nanoISO.slice(11,-1);
+    //     time2 = results[i].time._nanoISO.slice(11,-1);
+    //     t1 = moment(time1,"hh:mm:ss");
+    //     t2 = moment(time2,"hh:mm:ss");
+    //     diff = t2.diff(t1,'seconds');
+    //     // console.log(i)
+    //     // console.log("difference\n",t2,"-",t1,"=",diff)
+    //   }
+    //   duration+=parseInt(diff);
+    // }
+    // ratio = duration/(time*60);
   }catch(error){
     console.log(error)
   }
-return ratio;
+return table_objects;
 
 }
 
+const test=(req,res)=>{
+  update_new_status()
+}
+
 module.exports={
-  update_new_status
+  // update_new_status,
+  test
 }
