@@ -130,7 +130,7 @@ const resetTableStatus=()=>{
 
 // }
 
-const update_new_status=async()=>{
+const update_current_status=async()=>{
   const table_objects = await create_table_object()
   console.log("old table object\n", table_objects)
   const entities = create_influx_query()
@@ -233,10 +233,10 @@ return table_objects;
 }
 
 const test=(req,res)=>{
-  update_new_status()
+  update_current_status()
 }
 
 module.exports={
-  // update_new_status,
+  // update_current_status,
   test
 }
