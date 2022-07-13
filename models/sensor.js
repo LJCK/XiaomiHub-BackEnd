@@ -50,15 +50,11 @@ const newOccupancySchema = new Schema({
         type: Number,
         required: true
     },
-    tableNumber: {
-        type: Number,
-        required: true
-    },
     occupancyStatus: {
         type: String,
         required: true
     },
-    ExpiryTime: {
+    expiryTime: {
         type: String,
         required: true
     }
